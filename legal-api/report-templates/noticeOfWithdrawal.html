@@ -16,12 +16,20 @@
               </td>
               <td>
                  <div class="report-type">NOTICE OF WITHDRAWAL</div>
-                 <div class="report-type-desc">{{entityDescription}} - {{ entityAct }}</div>
+                 <div class="report-type-desc">{{ entityDescription }} - {{ entityAct }}</div>
               </td>
            </tr>
         </table>
         <div class="business-name-header">
-           <label class="lbl-business-name">{{business.legalName}}</label>
+         <label class="lbl-business-name">
+            {% if business.legalName %}
+               {{ business.legalName }}
+            {% elif withdrawnLegalName %}
+               {{ withdrawnLegalName }}
+            {% else %}
+               {{ numberedDescription }}
+            {% endif %}
+         </label>
         </div>
     </div>
     [[common/businessDetails.html]]

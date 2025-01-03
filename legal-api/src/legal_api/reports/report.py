@@ -762,6 +762,9 @@ class Report:  # pylint: disable=too-few-public-methods, too-many-lines
             withdrawn_filing.filing_type,
             withdrawn_filing.filing_sub_type
         )
+        withdrawn_filing_type = withdrawn_filing.filing_type
+        legal_name = withdrawn_filing.filing_json['filing'][withdrawn_filing_type]['nameRequest'].get('legalName', None)
+        filing['withdrawnLegalName'] = legal_name
         filing['withdrawnFilingType'] = formatted_withdrawn_filing_type
         withdrawn_filing_date = LegislationDatetime.as_legislation_timezone(withdrawn_filing.effective_date)
         filing['withdrawnFilingEffectiveDate'] = LegislationDatetime.format_as_report_string(withdrawn_filing_date)
