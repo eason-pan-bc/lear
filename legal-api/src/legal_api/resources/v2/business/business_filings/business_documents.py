@@ -107,6 +107,7 @@ def _get_receipt(business: Business, filing: Filing, token):
             Filing.Status.COMPLETED,
             Filing.Status.CORRECTED,
             Filing.Status.PAID,
+            Filing.Status.WITHDRAWN,
     ):
         return {}, HTTPStatus.BAD_REQUEST
 
