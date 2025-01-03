@@ -143,10 +143,16 @@ def _get_corp_name(business, filing):
     if business:
         return business.legal_name
 
+    # handle notice of withdraw filing for a temporary business
+    if filing.filing_type == Filing.FilingTypes.NOTICEOFWITHDRAWAL.value:
+        withdrawn_filing_id = filing.filing_json['filing']['noticeOfWithdrawal']['filingId']
+        withdrawn_filing = Filing.find_by_id(withdrawn_filing_id)
+        filing = withdrawn_filing.storage
     name_request = (filing.filing_json
                     .get('filing')
                     .get(filing.filing_type)
                     .get('nameRequest', {}))
+
     if name_request.get('legalName'):
         return name_request.get('legalName')
 
