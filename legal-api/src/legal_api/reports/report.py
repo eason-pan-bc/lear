@@ -356,6 +356,9 @@ class Report:  # pylint: disable=too-few-public-methods, too-many-lines
         legal_type = None
         if self._filing.filing_type == 'alteration':
             legal_type = self._filing.filing_json.get('filing').get('alteration').get('business', {}).get('legalType')
+        elif self._filing.filing_type == 'noticeOfWithdrawal' and not self._business:
+        # Handle Notice of Withdrawal filing for a temporary business
+            legal_type = self._filing.filing_json.get('filing').get('business', {}).get('legalType')
         else:
             legal_type = (self._filing.filing_json
                           .get('filing')

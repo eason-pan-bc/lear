@@ -53,8 +53,8 @@ def get_documents(identifier: str, filing_id: int, legal_filing_name: str = None
         ), HTTPStatus.UNAUTHORIZED
 
     if identifier.startswith('T'):
-        filing_model = FilingModel.get_temp_reg_filing(identifier)
-        business = Business.find_by_internal_id(filing_model.business_id)
+        filing = FilingModel.get_temp_reg_filing(identifier, filing_id)
+        business = None
     else:
         business = Business.find_by_identifier(identifier)
 
@@ -70,7 +70,8 @@ def get_documents(identifier: str, filing_id: int, legal_filing_name: str = None
         ), HTTPStatus.NOT_FOUND
 
     if not legal_filing_name and not file_key:
-        if identifier.startswith('T') and filing.status == Filing.Status.COMPLETED:
+        if identifier.startswith('T') and filing.status == Filing.Status.COMPLETED \
+            and filing.filing_type != Filing.FilingTypes.NOTICEOFWITHDRAWAL.value:
             return {'documents': {}}, HTTPStatus.OK
         return _get_document_list(business, filing)
 
