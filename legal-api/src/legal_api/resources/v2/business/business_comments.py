@@ -95,7 +95,10 @@ def post_comments(identifier):
         comment = Comment()
         comment.comment = json_input['comment']['comment']
         comment.staff_id = user.id
-        comment.business_id = business.id
+        if not business and _is_notice_of_withdrawal(json_input):
+            comment.filing_id = json_input.get('comment').get('filingId')
+        else:
+            comment.business_id = business.id
         comment.timestamp = datetime.datetime.utcnow()
         comment.save()
     except BusinessException as err:
@@ -114,7 +117,17 @@ def _basic_checks(identifier: str, business: Business, client_request) -> Tuple[
         return ({'message': f'No comment json data in body of post for {identifier}.'},
                 HTTPStatus.BAD_REQUEST)
 
-    if not business:
+    if not business and not _is_notice_of_withdrawal(json_input):
         return ({'message': f'{identifier} not found'}, HTTPStatus.NOT_FOUND)
 
     return (None, None)
+
+def _is_notice_of_withdrawal(json_input: dict):
+    """Check whether it a filing_id for a notice of withdrawal filing"""
+    try:
+        filing_id = json_input.get('comment').get('filingId')
+        filing = FilingModel.find_by_id(filing_id)
+        filing_type = filing.filing_type
+        return filing_type == 'noticeOfWithdrawal'
+    except Exception:
+        return False
