@@ -124,19 +124,32 @@ def _basic_checks(identifier, filing_id, client_request) -> Tuple[dict, int]:
         return ({'message': f'No filing json data in body of post for {identifier}.'},
                 HTTPStatus.BAD_REQUEST)
 
-    if client_request.method == 'GET' and identifier.startswith('T'):
-        filing_model = Filing.get_temp_reg_filing(identifier)
+    if client_request.method == 'GET' and identifier.startswith('T') or \
+        _is_notice_of_withdrawal(filing_id) and identifier.startswith('T'):
+        filing_model = Filing.get_temp_reg_filing(identifier, filing_id)
         business = Business.find_by_internal_id(filing_model.business_id)
     else:
         business = Business.find_by_identifier(identifier)
 
     filing = Filing.find_by_id(filing_id)
 
-    if not business:
+    if not business and not _is_notice_of_withdrawal(filing_id):
         return ({'message': f'{identifier} not found'}, HTTPStatus.NOT_FOUND)
 
     # check that filing belongs to this business
-    if not filing or filing.business_id != business.id:
-        return ({'message': f'Filing {filing_id} not found'}, HTTPStatus.NOT_FOUND)
+    if business:
+        if not filing or filing.business_id != business.id:
+            return ({'message': f'Filing {filing_id} not found'}, HTTPStatus.NOT_FOUND)
+    else:
+        if not filing or filing.temp_reg != identifier:
+            return ({'message': f'Filing {filing_id} not found'}, HTTPStatus.NOT_FOUND)
 
     return (None, None)
+
+def _is_notice_of_withdrawal(filing_id: int):
+    """Check whether it a notice of withdrawal filing"""
+    if not filing_id:
+        return False
+    filing = Filing.find_by_id(filing_id)
+    filing_type = filing.filing_type
+    return filing_type == 'noticeOfWithdrawal'
