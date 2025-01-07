@@ -37,23 +37,17 @@ from .bp import bp
 @cross_origin(origin='*')
 @jwt.requires_auth
 def get_comments(identifier, comment_id=None):
-    """Return a JSON object with comments of a business or with a particular comment_id."""
+    """Return a JSON object with meta information about the Service."""
     # basic checks
-    if identifier.startswith('T') and not comment_id:
+    if identifier.startswith('T'):
         filing_model = FilingModel.get_temp_reg_filing(identifier)
         business = Business.find_by_internal_id(filing_model.business_id)
     else:
         business = Business.find_by_identifier(identifier)
-    err_msg, err_code = _basic_checks(identifier, business, request, comment_id)
+    err_msg, err_code = _basic_checks(identifier, business, request)
     if err_msg:
         return jsonify(err_msg), err_code
-    
-    if not business and _is_notice_of_withdrawal(comment_id=comment_id):
-        comment = Comment.query.get(comment_id)
-        if not comment:
-            return jsonify({'message': f'Comment {comment_id} not found'}), HTTPStatus.NOT_FOUND
-        return jsonify(comment.json)
-    
+
     comments = db.session.query(Comment).filter(Comment.business_id == business.id, Comment.filing_id.is_(None))
 
     if comment_id:
@@ -101,10 +95,7 @@ def post_comments(identifier):
         comment = Comment()
         comment.comment = json_input['comment']['comment']
         comment.staff_id = user.id
-        if not business and _is_notice_of_withdrawal(json_input=json_input):
-            comment.filing_id = json_input.get('comment').get('filingId')
-        else:
-            comment.business_id = business.id
+        comment.business_id = business.id
         comment.timestamp = datetime.datetime.utcnow()
         comment.save()
     except BusinessException as err:
@@ -116,28 +107,14 @@ def post_comments(identifier):
     return jsonify(comment.json), HTTPStatus.CREATED
 
 
-def _basic_checks(identifier: str, business: Business, client_request, comment_id=None) -> Tuple[dict, int]:
+def _basic_checks(identifier: str, business: Business, client_request) -> Tuple[dict, int]:
     """Perform basic checks to ensure put can do something."""
     json_input = client_request.get_json()
     if client_request.method == 'POST' and not json_input:
         return ({'message': f'No comment json data in body of post for {identifier}.'},
                 HTTPStatus.BAD_REQUEST)
 
-    if not business and not _is_notice_of_withdrawal(json_input=json_input, comment_id=comment_id):
+    if not business:
         return ({'message': f'{identifier} not found'}, HTTPStatus.NOT_FOUND)
 
     return (None, None)
-
-def _is_notice_of_withdrawal(json_input: dict=None, comment_id: int=None):
-    """Check whether it a notice of withdrawal filing"""
-    if not comment_id:
-        try:
-            filing_id = json_input.get('comment').get('filingId')
-            filing = FilingModel.find_by_id(filing_id)
-            filing_type = filing.filing_type
-            return filing_type == 'noticeOfWithdrawal'
-        except Exception:
-            return False
-    
-    comment = Comment.query.get(comment_id)
-    return comment is not None
