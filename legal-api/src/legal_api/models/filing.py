@@ -855,6 +855,8 @@ class Filing(db.Model):  # pylint: disable=too-many-instance-attributes,too-many
             filing = q.one_or_none()
         else:
             filing = q.all()
+            if len(filing) == 1:  # no NoW, only a new business filing
+                filing = filing[0]
         return filing
 
     @staticmethod
