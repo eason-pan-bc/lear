@@ -151,5 +151,7 @@ def _is_notice_of_withdrawal(filing_id: int):
     if not filing_id:
         return False
     filing = Filing.find_by_id(filing_id)
+    if not filing:
+        return False
     filing_type = filing.filing_type
     return filing_type == 'noticeOfWithdrawal'
