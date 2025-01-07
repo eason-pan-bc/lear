@@ -755,6 +755,7 @@ class Report:  # pylint: disable=too-few-public-methods, too-many-lines
         self._set_amalgamating_businesses(filing)
 
     def _format_notice_of_withdrawal_data(self, filing):
+        legal_name = filing['business'].get('legalName', '')
         withdrawn_filing_id = filing['noticeOfWithdrawal']['filingId']
         withdrawn_filing = Filing.find_by_id(withdrawn_filing_id)
         formatted_withdrawn_filing_type = FilingMeta.get_display_name(
@@ -762,7 +763,8 @@ class Report:  # pylint: disable=too-few-public-methods, too-many-lines
             withdrawn_filing.filing_type,
             withdrawn_filing.filing_sub_type
         )
-        legal_name = withdrawn_filing.filing_json['filing'][withdrawn_filing.filing_type]['nameRequest'].get('legalName', None)
+        if not legal_name:  # deal with notice of withdraw for a temporary business
+            legal_name = withdrawn_filing.filing_json['filing'][withdrawn_filing.filing_type]['nameRequest'].get('legalName', None)
         filing['withdrawnLegalName'] = legal_name
         filing['withdrawnFilingType'] = formatted_withdrawn_filing_type
         withdrawn_filing_date = LegislationDatetime.as_legislation_timezone(withdrawn_filing.effective_date)

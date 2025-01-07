@@ -116,7 +116,7 @@ def post_comments(identifier):
     return jsonify(comment.json), HTTPStatus.CREATED
 
 
-def _basic_checks(identifier: str, business: Business, client_request, comment_id) -> Tuple[dict, int]:
+def _basic_checks(identifier: str, business: Business, client_request, comment_id=None) -> Tuple[dict, int]:
     """Perform basic checks to ensure put can do something."""
     json_input = client_request.get_json()
     if client_request.method == 'POST' and not json_input:
