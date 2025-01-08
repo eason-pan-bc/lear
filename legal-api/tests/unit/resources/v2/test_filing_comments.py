@@ -18,14 +18,30 @@ Test-Suite to ensure that the filings/<filing_id>/comments endpoint is working a
 """
 import copy
 from http import HTTPStatus
+from datetime import datetime as date_time, timedelta
 
+import pytest
 from freezegun import freeze_time
-from registry_schemas.example_data import ANNUAL_REPORT, COMMENT_FILING
+from registry_schemas.example_data import (
+    AMALGAMATION_APPLICATION,
+    ANNUAL_REPORT,
+    COMMENT_FILING,
+    CONTINUATION_IN,
+    FILING_HEADER,
+    INCORPORATION,
+    NOTICE_OF_WITHDRAWAL
+)
 
-from legal_api.models import User
+from legal_api.models import RegistrationBootstrap, User
 from legal_api.services.authz import BASIC_USER, STAFF_ROLE
 from legal_api.utils import datetime
-from tests.unit.models import factory_business, factory_comment, factory_filing
+from tests.unit.models import (
+    factory_business, 
+    factory_comment, 
+    factory_filing, 
+    factory_pending_filing, 
+    factory_withdrawal_new_business_filing
+)
 from tests.unit.services.utils import create_header
 
 
@@ -349,3 +365,64 @@ def test_comments_in_filing_response(session, client, jwt):
     assert rv.status_code == HTTPStatus.OK
     assert None is not rv.json['filing']['header'].get('comments')
     assert 2 == len(rv.json['filing']['header'].get('comments'))
+
+@pytest.mark.parametrize(
+        'test_name, legal_type, filing_type, filing_json',
+        [
+            ('T-BUSINESS-IA', 'BC', 'incorporationApplication', INCORPORATION),
+            ('T-BUSINESS-CONT-IN', 'BEN', 'continuationIn', CONTINUATION_IN),
+            ('T-BUSINESS-AMALGAMATION', 'CBEN', 'amalgamationApplication', AMALGAMATION_APPLICATION)
+        ]
+)
+def test_comments_for_notice_of_withdrawal_new_business(session, client, jwt, test_name, legal_type, filing_type, filing_json):
+    """Assert that comments for notice of withdrawal filing for a temporary business works"""
+    today = date_time.utcnow().date()
+    future_effective_date = today + timedelta(days=5)
+    future_effective_date = future_effective_date.isoformat()
+    # create a FE new business filing
+    identifier = 'Tb31yQIuBw'
+    temp_reg = RegistrationBootstrap()
+    temp_reg._identifier = identifier
+    temp_reg.save()
+    json_data = copy.deepcopy(FILING_HEADER)
+    json_data['filing']['header']['name'] = filing_type
+    del json_data['filing']['business']
+    new_bus_filing_json = copy.deepcopy(filing_json)
+    new_bus_filing_json['nameRequest']['legalType'] = legal_type
+    json_data['filing'][filing_type] = new_bus_filing_json
+    new_business_filing = factory_pending_filing(None, json_data)
+    new_business_filing.temp_reg = identifier
+    new_business_filing.effective_date = future_effective_date
+    new_business_filing.payment_completion_date = date_time.utcnow().isoformat()
+    new_business_filing.save()
+    withdrawn_filing_id = new_business_filing.id
+
+    # file a notice of withdrawal for a temporary business
+    now_json_data = copy.deepcopy(FILING_HEADER)
+    now_json_data['filing']['header']['name'] = 'noticeOfWithdrawal'
+    del now_json_data['filing']['business']
+    now_json_data['filing']['business'] = {
+        "identifier": identifier,
+        "legalType": legal_type
+    }
+    now_json_data['filing']['noticeOfWithdrawal'] = copy.deepcopy(NOTICE_OF_WITHDRAWAL)
+    now_json_data['filing']['noticeOfWithdrawal']['filingId'] = withdrawn_filing_id
+    del now_json_data['filing']['header']['filingId']
+    now_filing = factory_withdrawal_new_business_filing(identifier, now_json_data)
+    now_filing_id = now_filing.id
+
+    # test post comment
+    comment_payload = copy.deepcopy(SAMPLE_JSON_DATA)
+    comment_payload['comment']['filingId'] = now_filing_id
+    rv = client.post(f'/api/v2/businesses/{identifier}/filings/{now_filing_id}/comments',
+                     json=comment_payload,
+                     headers=create_header(jwt, [STAFF_ROLE]))
+    
+    assert rv.status_code == HTTPStatus.CREATED
+    
+    # test get comment
+    rv_get = client.get(f'/api/v2/businesses/{identifier}/filings/{now_filing_id}/comments',
+                    headers=create_header(jwt, [STAFF_ROLE]))
+    
+    assert rv_get.status_code == HTTPStatus.OK
+    assert rv_get.json.get('comments')[0].get('comment').get('filingId') == now_filing_id

@@ -211,6 +211,23 @@ def factory_filing(business, data_dict,
     return filing
 
 
+def factory_withdrawal_new_business_filing(identifier, 
+                                           data_dict,
+                                           filing_date=FROZEN_DATETIME,
+                                           effective_date=FROZEN_DATETIME):
+    """Create a notice of withdrawal filing for T business"""
+    filing = Filing()
+    filing.filing_json = data_dict
+    filing.temp_reg = identifier
+    filing.filing_date = filing_date
+    filing.effective_date = effective_date
+    try:
+        filing.save()
+    except Exception as err:
+        print(err)
+    return filing
+
+
 def factory_incorporation_filing(business, data_dict, filing_date=FROZEN_DATETIME, effective_date=FROZEN_DATETIME):
     """Create a filing."""
     filing = Filing()
