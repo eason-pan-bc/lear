@@ -62,7 +62,7 @@ def filter_validation_errors(validation_errors, json_data):
         else:
             filtered_errors.append(error)
     
-    return filtered_errors
+    return filtered_errors if filtered_errors else validation_errors
 
 
 def validate_against_schema(json_data: Dict = None) -> Error:
