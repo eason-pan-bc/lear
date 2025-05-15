@@ -62,7 +62,9 @@ def handle_uncaught_error(error: Exception):  # pylint: disable=unused-argument
 
     if isinstance(error, KeyError):
         return jsonify({'message': f'Missing field: {str(error)}'}), 400
-
+    if isinstance(error, TypeError):
+        return jsonify({
+            'message': f'Encountered an error processing the request, {str(error)}'}), 422
     response = jsonify({'message': 'Internal server error'})
     response.status_code = 500
     return response
