@@ -16,7 +16,11 @@
 
 A simple decorator to add the options method to a Request Class.
 """
-# from functools import wraps
+from functools import wraps
+from http import HTTPStatus
+
+from legal_api.errors import Error
+
 
 
 def cors_preflight(methods: str = 'GET'):
@@ -95,3 +99,49 @@ def filter_validation_errors(validation_errors, json_data):
             filtered_errors.append(error)
 
     return filtered_errors if filtered_errors else validation_errors
+
+
+def handle_uncaught_exceptions(f):
+    """Decorator to catch all uncaught exceptions in API endpoints. 
+
+    Return appropriate error responses instead of 500 errors.
+    """
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        try:
+            # Execute the endpoint function
+            result = f(*args, **kwargs)
+            return result
+        except KeyError as e:  # Handle uncaught missing fields
+            error_msg = [{
+                "error": "missing_field",
+                "message": f"Field is missing: {str(e)}"
+            }]
+            return Error(HTTPStatus.BAD_REQUEST, error_msg)
+        except Exception as e:  # Catch all other exceptions
+            # Determine the error type and message
+            msg = []
+
+            # Check for common error patterns to provide better messages
+            error_str = str(e).lower()
+            if "timeout" in error_str:
+                msg.append({
+                    "error": "timeout_error",
+                    "message": "The operation timed out"
+                })
+            elif "permission" in error_str or "access" in error_str:
+                msg.append({
+                    "error": "permission_error",
+                    "message": "Permission denied for this operation"
+                })
+            elif "not found" in error_str:
+                msg.append({
+                    "error": "not_round_error",
+                    "message": "The requested resource was not found"
+                })
+            else:
+                msg.append(e)
+
+            return Error(HTTPStatus.INTERNAL_SERVER_ERROR, msg)
+
+    return decorated
