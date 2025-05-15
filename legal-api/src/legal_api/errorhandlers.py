@@ -59,6 +59,10 @@ def handle_uncaught_error(error: Exception):  # pylint: disable=unused-argument
     ensure it's logged and recorded in Sentry.
     """
     logger.error('Uncaught exception', exc_info=sys.exc_info())
+
+    if isinstance(error, KeyError):
+        return jsonify({'message': f'Missing field: {str(error)}'}), 400
+
     response = jsonify({'message': 'Internal server error'})
     response.status_code = 500
     return response
